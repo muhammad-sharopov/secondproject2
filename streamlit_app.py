@@ -201,6 +201,7 @@ st.plotly_chart(fig, use_container_width=True)
 
 
 
+
 def train_and_predict_cb(X_train, y_train, X_test):
     model = CatBoostRegressor(iterations=1000, learning_rate=0.1, depth=6, verbose=0)
     model.fit(X_train, y_train)
@@ -216,23 +217,19 @@ def compute_metrics(y_true, y_pred):
     return mse, rmse, mae, r2
 
 # Пример данных
-# Замените на ваши данные
+# Замените на свои данные (X_train, y_train, X_test, test)
 X_train = train.drop(columns=['Price'])
 y_train = train['Price']
 X_test = test.drop(columns=['Price'])
 
-# Обучаем и получаем предсказания
+# Слайдер для выбора времени (например, количество дней вперед)
+days_ahead = st.slider("Выберите количество дней для прогноза:", 1, 30, 1)
+
+# Обучаем модель и делаем предсказание
 y_pred_cb = train_and_predict_cb(X_train, y_train, X_test)
 
-# Вычисляем метрики
-mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_cb)
+# Прогнозируем на основе выбранного количества дней
+predicted_price = y_pred_cb[days_ahead - 1]
 
-# Выводим метрики
-st.write(f"CatBoost Model Metrics:")
-st.write(f"MSE: {mse:.2f}")
-st.write(f"RMSE: {rmse:.2f}")
-st.write(f"MAE: {mae:.2f}")
-st.write(f"R2: {r2:.2f}")
-
-# Отображаем предсказанную цену
-st.write(f"Прогнозируемая цена: {y_pred_cb[-1]:.2f} USD")
+# Показываем результат
+st.write(f"Прогнозируемая цена через {days_ahead} день(ей): {predicted_price:.2f} USD")
