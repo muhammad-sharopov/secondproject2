@@ -110,6 +110,9 @@ train, test = df_feat.iloc[:train_size], df_feat.iloc[train_size:]
 # Define X_train and X_test with the feature columns
 X_train = train[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']]
 X_test = test[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']]
+# Fill missing values with the median of the column
+X_train = X_train.fillna(X_train.median())
+X_test = X_test.fillna(X_test.median())
 
 # Исходные данные
 fig = go.Figure()
