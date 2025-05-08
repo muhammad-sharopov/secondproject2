@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.title("Brent Oil Data - Feature Engineering Demo")
+st.title("Brent Oil Data — Feature Engineering Demo")
 
 @st.cache_data
 def get_data_from_EIA_local():
@@ -27,17 +27,18 @@ def add_features(df):
 
 # Загрузка данных
 df_raw = get_data_from_EIA_local()
+df_feat = add_features(df_raw.copy())
 
-# Интерфейс
-col1, col2 = st.columns(2)
+# Радио-переключатель
+view_option = st.radio(
+    "Выберите отображение данных:",
+    ("До обработки", "После обработки")
+)
 
-with col1:
-    if st.button("Показать данные ДО обработки"):
-        st.subheader("Исходные данные")
-        st.dataframe(df_raw.head(10))
-
-with col2:
-    if st.button("Показать данные ПОСЛЕ обработки"):
-        st.subheader("Данные с признаками")
-        df_feat = add_features(df_raw.copy())
-        st.dataframe(df_feat.head(10))
+# Отображение данных
+if view_option == "До обработки":
+    st.subheader("Исходные данные")
+    st.dataframe(df_raw.head(10))
+else:
+    st.subheader("Данные с признаками")
+    st.dataframe(df_feat.head(10))
