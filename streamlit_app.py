@@ -75,3 +75,53 @@ fig = px.line(
 )
 fig.update_layout(xaxis_title="Дата", yaxis_title="Цена ($)")
 st.plotly_chart(fig, use_container_width=True)
+
+st.subheader("📈 Модели прогнозирования")
+
+# Исходные данные
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=df.index, y=df['Price'], name="Исходные данные", line=dict(color='black')))
+
+# Общие переменные
+train_size = int(len(df) * 0.7)
+train, test = df.iloc[:train_size], df.iloc[train_size:]
+
+# Checkboxes
+show_lr = st.checkbox("Linear Regression")
+show_rf = st.checkbox("Random Forest")
+show_cb = st.checkbox("CatBoost")
+show_lstm = st.checkbox("LSTM")
+show_prophet = st.checkbox("Prophet")
+show_arima = st.checkbox("ARIMA")
+show_sarima = st.checkbox("SARIMA")
+
+# Добавление моделей по выбору
+if show_lr:
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_lr, name="Linear Regression"))
+
+if show_rf:
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_rf, name="Random Forest"))
+
+if show_cb:
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_cb, name="CatBoost"))
+
+if show_lstm:
+    # предполагается, что predicted_prices и test индексы есть
+    lstm_index = df.index[-len(predicted_prices):]
+    fig.add_trace(go.Scatter(x=lstm_index, y=predicted_prices.flatten(), name="LSTM"))
+
+if show_prophet:
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="Prophet"))
+
+if show_arima:
+    arima_model = ARIMA(train, order=(5, 1, 0)).fit()
+    arima_pred = arima_model.forecast(steps=len(test))
+    fig.add_trace(go.Scatter(x=test.index, y=arima_pred, name="ARIMA"))
+
+if show_sarima:
+    sarima_model = SARIMAX(train, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12)).fit(disp=False)
+    sarima_pred = sarima_model.forecast(steps=len(test))
+    fig.add_trace(go.Scatter(x=test.index, y=sarima_pred, name="SARIMA"))
+
+fig.update_layout(title="Прогнозы моделей", xaxis_title="Дата", yaxis_title="Цена", legend_title="Модели")
+st.plotly_chart(fig, use_container_width=True)
