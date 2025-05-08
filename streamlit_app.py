@@ -27,7 +27,7 @@ def add_features(df):
 
 # Загрузка данных
 df = get_data_from_EIA_local()
-df_feat = add_features(df_raw.copy())
+df_feat = add_features(df.copy())
 
 # Радио-переключатель
 view_option = st.radio(
