@@ -202,6 +202,23 @@ st.plotly_chart(fig, use_container_width=True)
 
 
 
+def predict_future_price(model_predictions, df, steps=30):
+    # Создаем DataFrame для хранения будущих дат
+    future_dates = pd.date_range(df.index[-1] + datetime.timedelta(days=1), periods=steps, freq='D')
+
+    # Создаем DataFrame для будущих прогнозов
+    future_df = pd.DataFrame(index=future_dates)
+    
+    # Для LSTM или других моделей, которые используют числовые входные данные, например:
+    if isinstance(model_predictions, np.ndarray):
+        future_df['Price'] = model_predictions[-steps:]
+    else:
+        # Для Prophet или других моделей, которые могут делать предсказания по датам
+        future_df['Price'] = model_predictions[-steps:]
+
+    return future_df.index, future_df['Price']
+
+
 # Сохраняем ошибку для каждой модели
 errors = {}
 
