@@ -211,31 +211,44 @@ future_days = st.slider(
     step=1
 )
 
-# Предсказания для будущих дней
+# Прогнозы для будущих дней
 if show_lr:
-    y_pred_lr_future = y_pred_lr[-1] + np.cumsum(np.random.randn(future_days))  # Пример для Linear Regression
+    # Прогнозирование с использованием Linear Regression
+    future_X = X_test.tail(future_days)  # Берем последние значения X_test
+    y_pred_lr_future = train_and_predict_lr(future_X, train['Price'].iloc[-future_days:], future_X)
     st.write(f"Предсказанная цена на {future_days} дней вперёд для Linear Regression: {y_pred_lr_future[-1]:.2f} USD")
 
 if show_rf:
-    y_pred_rf_future = y_pred_rf[-1] + np.cumsum(np.random.randn(future_days))  # Пример для Random Forest
+    # Прогнозирование с использованием Random Forest
+    future_X = X_test.tail(future_days)  # Берем последние значения X_test
+    y_pred_rf_future = train_and_predict_rf(future_X, train['Price'].iloc[-future_days:], future_X)
     st.write(f"Предсказанная цена на {future_days} дней вперёд для Random Forest: {y_pred_rf_future[-1]:.2f} USD")
 
 if show_cb:
-    y_pred_cb_future = y_pred_cb[-1] + np.cumsum(np.random.randn(future_days))  # Пример для CatBoost
+    # Прогнозирование с использованием CatBoost
+    future_X = X_test.tail(future_days)  # Берем последние значения X_test
+    y_pred_cb_future = train_and_predict_cb(future_X, train['Price'].iloc[-future_days:], future_X)
     st.write(f"Предсказанная цена на {future_days} дней вперёд для CatBoost: {y_pred_cb_future[-1]:.2f} USD")
 
 if show_lstm:
-    y_pred_lstm_future = y_pred_lstm[-1] + np.cumsum(np.random.randn(future_days))  # Пример для LSTM
+    # Прогнозирование с использованием LSTM
+    future_X = X_test.tail(future_days)  # Берем последние значения X_test
+    y_pred_lstm_future = train_and_predict_lstm(future_X, train['Price'].iloc[-future_days:], future_X)
     st.write(f"Предсказанная цена на {future_days} дней вперёд для LSTM: {y_pred_lstm_future[-1]:.2f} USD")
 
 if show_prophet:
-    y_pred_prophet_future = y_pred_prophet[-1] + np.cumsum(np.random.randn(future_days))  # Пример для Prophet
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для Prophet: {y_pred_prophet_future[-1]:.2f} USD")
+    # Прогнозирование с использованием Prophet
+    future_dates = pd.date_range(df_feat.index[-1], periods=future_days + 1, freq='D')[1:]  # Генерация будущих дат
+    future_df = pd.DataFrame({'ds': future_dates})  # Создаем новый DataFrame для предсказаний
+    future_prophet = train_and_predict_prophet(df_feat)
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для Prophet: {future_prophet[-1]:.2f} USD")
 
 if show_arima:
-    y_pred_arima_future = y_pred_arima[-1] + np.cumsum(np.random.randn(future_days))  # Пример для ARIMA
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для ARIMA: {y_pred_arima_future[-1]:.2f} USD")
+    # Прогнозирование с использованием ARIMA
+    future_arima = train_and_predict_arima(train)
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для ARIMA: {future_arima[-1]:.2f} USD")
 
 if show_sarima:
-    y_pred_sarima_future = y_pred_sarima[-1] + np.cumsum(np.random.randn(future_days))  # Пример для SARIMA
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для SARIMA: {y_pred_sarima_future[-1]:.2f} USD")
+    # Прогнозирование с использованием SARIMA
+    future_sarima = train_and_predict_sarima(train)
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для SARIMA: {future_sarima[-1]:.2f} USD")
