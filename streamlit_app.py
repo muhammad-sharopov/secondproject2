@@ -106,73 +106,59 @@ show_sarima = st.checkbox("SARIMA")
 
 # Прогнозы для моделей
 # Linear Regression
+# Добавление моделей по выбору
 if show_lr:
+    # Ensure you're using the df_feat DataFrame with the added features
     lr_model = LinearRegression()
-    lr_model.fit(train[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']], train['Price'])
-    y_pred_lr = lr_model.predict(test[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']])
+    X_train = train[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']]
+    X_test = test[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']]
+    lr_model.fit(X_train, train['Price'])
+    y_pred_lr = lr_model.predict(X_test)
     fig.add_trace(go.Scatter(x=test.index, y=y_pred_lr, name="Linear Regression"))
 
-# Random Forest
 if show_rf:
-    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-    rf_model.fit(train[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']], train['Price'])
-    y_pred_rf = rf_model.predict(test[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']])
+    rf_model = RandomForestRegressor(n_estimators=100)
+    rf_model.fit(X_train, train['Price'])
+    y_pred_rf = rf_model.predict(X_test)
     fig.add_trace(go.Scatter(x=test.index, y=y_pred_rf, name="Random Forest"))
 
-# CatBoost
 if show_cb:
-    cb_model = CatBoostRegressor(verbose=0, random_state=42)
-    cb_model.fit(train[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']], train['Price'])
-    y_pred_cb = cb_model.predict(test[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']])
+    cb_model = CatBoostRegressor(iterations=1000, learning_rate=0.1, depth=6, cat_features=['Month', 'DayOfWeek'], verbose=0)
+    cb_model.fit(X_train, train['Price'])
+    y_pred_cb = cb_model.predict(X_test)
     fig.add_trace(go.Scatter(x=test.index, y=y_pred_cb, name="CatBoost"))
 
-# LSTM
 if show_lstm:
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df[['Price']])
-    sequence_length = 50
-    X = []
-    y = []
-    for i in range(sequence_length, len(scaled_data)):
-        X.append(scaled_data[i-sequence_length:i, 0])
-        y.append(scaled_data[i, 0])
+    # Assume lstm_model is trained here (same structure as previous code)
+    lstm_model = Sequential()
+    lstm_model.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], 1)))
+    lstm_model.add(LSTM(units=50, return_sequences=False))
+    lstm_model.add(Dense(units=1))
+    lstm_model.compile(optimizer='adam', loss='mean_squared_error')
+    # Assuming reshaped X_train for LSTM
+    X_train_lstm = X_train.values.reshape((X_train.shape[0], X_train.shape[1], 1))
+    lstm_model.fit(X_train_lstm, train['Price'], epochs=10, batch_size=32)
+    predicted_prices = lstm_model.predict(X_test.values.reshape((X_test.shape[0], X_test.shape[1], 1)))
+    fig.add_trace(go.Scatter(x=test.index, y=predicted_prices.flatten(), name="LSTM"))
 
-    X, y = np.array(X), np.array(y)
-    X = np.reshape(X, (X.shape[0], X.shape[1], 1))
-
-    train_size = int(len(X) * 0.7)
-    X_train, X_test = X[:train_size], X[train_size:]
-    y_train, y_test = y[:train_size], y[train_size:]
-
-    model = Sequential()
-    model.add(LSTM(units=50, return_sequences=False, input_shape=(X_train.shape[1], 1)))
-    model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mean_squared_error')
-    model.fit(X_train, y_train, epochs=10, batch_size=64, verbose=1)
-    predicted = model.predict(X_test)
-    predicted_prices = scaler.inverse_transform(predicted.reshape(-1, 1))
-    lstm_index = df.index[-len(predicted_prices):]
-    fig.add_trace(go.Scatter(x=lstm_index, y=predicted_prices.flatten(), name="LSTM"))
-
-# Prophet
 if show_prophet:
+    df_prophet = df_feat.reset_index()[['Date', 'Price']]
+    df_prophet.columns = ['ds', 'y']
     prophet_model = Prophet()
-    prophet_data = df.reset_index()[['Date', 'Price']].rename(columns={'Date': 'ds', 'Price': 'y'})
-    prophet_model.fit(prophet_data)
-    future = prophet_model.make_future_dataframe(prophet_data, periods=len(test))
-    forecast = prophet_model.predict(future)
+    prophet_model.fit(df_prophet)
+    forecast = prophet_model.predict(df_prophet)
     fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="Prophet"))
 
-# ARIMA
 if show_arima:
-    arima_model = ARIMA(train['Price'], order=(5, 1, 0)).fit()
-    arima_pred = arima_model.forecast(steps=len(test))
+    arima_model = ARIMA(train['Price'], order=(5, 1, 0))
+    arima_model_fit = arima_model.fit()
+    arima_pred = arima_model_fit.forecast(steps=len(test))
     fig.add_trace(go.Scatter(x=test.index, y=arima_pred, name="ARIMA"))
 
-# SARIMA
 if show_sarima:
-    sarima_model = SARIMAX(train['Price'], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12)).fit(disp=False)
-    sarima_pred = sarima_model.forecast(steps=len(test))
+    sarima_model = SARIMAX(train['Price'], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+    sarima_model_fit = sarima_model.fit(disp=False)
+    sarima_pred = sarima_model_fit.forecast(steps=len(test))
     fig.add_trace(go.Scatter(x=test.index, y=sarima_pred, name="SARIMA"))
 
 fig.update_layout(title="Прогнозы моделей", xaxis_title="Дата", yaxis_title="Цена", legend_title="Модели")
