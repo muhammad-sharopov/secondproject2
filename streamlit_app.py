@@ -9,7 +9,7 @@ from catboost import CatBoostRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from keras.models import Sequential
 from keras.layers import LSTM, Dense
-from fbprophet import Prophet
+from prophet import Prophet
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import plotly.graph_objects as go
