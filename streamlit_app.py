@@ -198,3 +198,44 @@ if show_sarima:
 fig.update_layout(title="Прогнозы моделей", xaxis_title="Дата", yaxis_title="Цена", legend_title="Модели")
 st.plotly_chart(fig, use_container_width=True)
 
+
+
+
+
+# Слайдер для выбора времени предсказания
+future_days = st.slider(
+    "Выберите количество дней для предсказания:",
+    min_value=1,
+    max_value=365,
+    value=30,  # по умолчанию 30 дней
+    step=1
+)
+
+# Предсказания для будущих дней
+if show_lr:
+    y_pred_lr_future = y_pred_lr[-1] + np.cumsum(np.random.randn(future_days))  # Пример для Linear Regression
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для Linear Regression: {y_pred_lr_future[-1]:.2f} USD")
+
+if show_rf:
+    y_pred_rf_future = y_pred_rf[-1] + np.cumsum(np.random.randn(future_days))  # Пример для Random Forest
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для Random Forest: {y_pred_rf_future[-1]:.2f} USD")
+
+if show_cb:
+    y_pred_cb_future = y_pred_cb[-1] + np.cumsum(np.random.randn(future_days))  # Пример для CatBoost
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для CatBoost: {y_pred_cb_future[-1]:.2f} USD")
+
+if show_lstm:
+    y_pred_lstm_future = y_pred_lstm[-1] + np.cumsum(np.random.randn(future_days))  # Пример для LSTM
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для LSTM: {y_pred_lstm_future[-1]:.2f} USD")
+
+if show_prophet:
+    y_pred_prophet_future = y_pred_prophet[-1] + np.cumsum(np.random.randn(future_days))  # Пример для Prophet
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для Prophet: {y_pred_prophet_future[-1]:.2f} USD")
+
+if show_arima:
+    y_pred_arima_future = y_pred_arima[-1] + np.cumsum(np.random.randn(future_days))  # Пример для ARIMA
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для ARIMA: {y_pred_arima_future[-1]:.2f} USD")
+
+if show_sarima:
+    y_pred_sarima_future = y_pred_sarima[-1] + np.cumsum(np.random.randn(future_days))  # Пример для SARIMA
+    st.write(f"Предсказанная цена на {future_days} дней вперёд для SARIMA: {y_pred_sarima_future[-1]:.2f} USD")
