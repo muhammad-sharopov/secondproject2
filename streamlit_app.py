@@ -38,7 +38,7 @@ view_option = st.radio(
 # Отображение данных
 if view_option == "До обработки":
     st.subheader("Исходные данные")
-    st.dataframe(df_raw.head(10))
+    st.dataframe(df.head(10))
 else:
     st.subheader("Данные с признаками")
     st.dataframe(df_feat.head(10))
