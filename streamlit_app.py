@@ -104,9 +104,17 @@ show_prophet = st.checkbox("Prophet")
 show_arima = st.checkbox("ARIMA")
 show_sarima = st.checkbox("SARIMA")
 
-# Прогнозы для моделей
-# Linear Regression
-# Добавление моделей по выбору
+train_size = int(len(df_feat) * 0.7)  
+train, test = df_feat.iloc[:train_size], df_feat.iloc[train_size:]
+
+# Define X_train and X_test with the feature columns
+X_train = train[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']]
+X_test = test[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']]
+
+# Исходные данные
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=df_feat.index, y=df_feat['Price'], name="Исходные данные", line=dict(color='black')))
+
 if show_lr:
     # Ensure you're using the df_feat DataFrame with the added features
     lr_model = LinearRegression()
