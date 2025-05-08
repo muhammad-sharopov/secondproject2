@@ -202,7 +202,11 @@ st.plotly_chart(fig, use_container_width=True)
 
 
 
+# Функция для вычисления метрик модели
 def compute_metrics(y_true, y_pred):
+    if len(y_true) != len(y_pred):
+        raise ValueError(f"Размерности y_true и y_pred не совпадают: {len(y_true)} != {len(y_pred)}")
+    
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
     mae = mean_absolute_error(y_true, y_pred)
@@ -239,6 +243,10 @@ if show_prophet:
 
 if show_arima:
     y_pred_arima = train_and_predict_arima(train)
+    # Убедитесь, что длина y_pred_arima совпадает с тестовыми данными
+    if len(y_pred_arima) != len(test['Price']):
+        # Приводим y_pred_arima к той же длине, что и test['Price']
+        y_pred_arima = y_pred_arima[:len(test['Price'])]
     mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_arima)
     metrics['ARIMA'] = (mse, rmse, mae, r2)
 
