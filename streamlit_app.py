@@ -1,16 +1,21 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 from catboost import CatBoostRegressor
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 from prophet import Prophet
 from sklearn.preprocessing import MinMaxScaler
-import os
-import pickle
+import warnings
+warnings.filterwarnings("ignore")
 
 # Загрузка данных
 def get_data_from_EIA_local():
@@ -22,128 +27,184 @@ def get_data_from_EIA_local():
     df.sort_index(inplace=True)
     return df
 
-# Сохранение модели
-def save_model(model, filename):
-    with open(filename, 'wb') as file:
-        pickle.dump(model, file)
+# Функция для построения графика
+def plot_results(actual, predicted, title):
+    plt.figure(figsize=(12, 6))
+    plt.plot(actual, label='Actual Prices')
+    plt.plot(predicted, label='Predicted Prices')
+    plt.title(title)
+    plt.xlabel('Time')
+    plt.ylabel('Price')
+    plt.legend()
+    st.pyplot()
 
-# Загрузка модели
-def load_model(filename):
-    if os.path.exists(filename):
-        with open(filename, 'rb') as file:
-            model = pickle.load(file)
-        return model
-    return None
+# Оценка моделей
+def evaluate_model(y_true, y_pred, label):
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    mae = mean_absolute_error(y_true, y_pred)
+    r2 = r2_score(y_true, y_pred)
+    return {'model': label, 'rmse': rmse, 'mae': mae, 'r2': r2}
+
+# Функция для прогноза с использованием Prophet
+def prophet_forecast(df):
+    df_prophet = df.reset_index().rename(columns={"Date": "ds", "Price": "y"})
+    train_size = int(len(df_prophet) * 0.7)
+    train = df_prophet.iloc[:train_size]
+    test = df_prophet.iloc[train_size:]
+    
+    model = Prophet()
+    model.fit(train)
+    future = test[['ds']].copy()
+    forecast = model.predict(future)
+    
+    return forecast, test
+
+# Старт Streamlit
+st.title('Time Series Forecasting with Multiple Models')
+
+# Загрузка данных
+df = get_data_from_EIA_local()
+
+# Отображаем данные
+st.subheader('Data')
+st.write(df.head())
+
+# Прогнозирование с Prophet
+st.subheader('Prophet Forecasting')
+forecast, test = prophet_forecast(df)
+plot_results(test['y'], forecast['yhat'], 'Prophet Forecast vs Actual')
 
 # Прогнозирование с ARIMA
-def arima_forecast(df):
-    model_filename = 'arima_model.pkl'
-    model = load_model(model_filename)
-    if model is None:
-        model = ARIMA(df['Price'], order=(5,1,0)).fit()
-        save_model(model, model_filename)
-    y_pred_arima = model.forecast(steps=len(df))
-    return y_pred_arima
+st.subheader('ARIMA Forecasting')
+arima_model = ARIMA(df['Price'], order=(5,1,0)).fit()
+y_pred_arima = arima_model.forecast(steps=len(df))
+plot_results(df['Price'], y_pred_arima, 'ARIMA Forecast vs Actual')
 
 # Прогнозирование с SARIMAX
-def sarimax_forecast(df):
-    model_filename = 'sarimax_model.pkl'
-    model = load_model(model_filename)
-    if model is None:
-        train_exog = df.index.month.values.reshape(-1, 1)
-        model = SARIMAX(df['Price'], exog=train_exog, order=(1, 1, 1), seasonal_order=(1, 1, 1, 7)).fit(disp=False)
-        save_model(model, model_filename)
-    y_pred_sarimax = model.forecast(steps=len(df), exog=train_exog)
-    return y_pred_sarimax
+st.subheader('SARIMAX Forecasting')
+train_exog = df.index.month.values.reshape(-1, 1)
+sarimax_model = SARIMAX(df['Price'], exog=train_exog, order=(1, 1, 1), seasonal_order=(1, 1, 1, 7)).fit(disp=False)
+y_pred_sarimax = sarimax_model.forecast(steps=len(df), exog=train_exog)
+plot_results(df['Price'], y_pred_sarimax, 'SARIMAX Forecast vs Actual')
 
 # Прогнозирование с LSTM
-def lstm_forecast(df):
-    model_filename = 'lstm_model.pkl'
-    model = load_model(model_filename)
-    if model is None:
-        scaler = MinMaxScaler()
-        scaled_data = scaler.fit_transform(df[['Price']])
+st.subheader('LSTM Forecasting')
+scaler = MinMaxScaler()
+scaled_data = scaler.fit_transform(df[['Price']])
 
-        sequence_length = 50
-        X = []
-        y = []
-        for i in range(sequence_length, len(scaled_data)):
-            X.append(scaled_data[i-sequence_length:i, 0])
-            y.append(scaled_data[i, 0])
+sequence_length = 50
+X = []
+y = []
+for i in range(sequence_length, len(scaled_data)):
+    X.append(scaled_data[i-sequence_length:i, 0])
+    y.append(scaled_data[i, 0])
 
-        X, y = np.array(X), np.array(y)
-        X = np.reshape(X, (X.shape[0], X.shape[1], 1))
-        train_size = int(len(X) * 0.7)
-        X_train, X_test = X[:train_size], X[train_size:]
-        y_train, y_test = y[:train_size], y[train_size:]
+X, y = np.array(X), np.array(y)
+X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+train_size = int(len(X) * 0.7)
+X_train, X_test = X[:train_size], X[train_size:]
+y_train, y_test = y[:train_size], y[train_size:]
 
-        model = Sequential()
-        model.add(LSTM(units=50, return_sequences=False, input_shape=(X_train.shape[1], 1)))
-        model.add(Dense(1))
-        model.compile(optimizer='adam', loss='mean_squared_error')
-        model.fit(X_train, y_train, epochs=10, batch_size=64, verbose=1)
+model = Sequential()
+model.add(LSTM(units=50, return_sequences=False, input_shape=(X_train.shape[1], 1)))
+model.add(Dense(1))
+model.compile(optimizer='adam', loss='mean_squared_error')
+model.fit(X_train, y_train, epochs=10, batch_size=64, verbose=1)
 
-        save_model(model, model_filename)
+predicted = model.predict(X_test)
+predicted_prices = scaler.inverse_transform(predicted.reshape(-1, 1))
+real_prices = scaler.inverse_transform(y_test.reshape(-1, 1))
+
+plot_results(real_prices, predicted_prices, 'LSTM Forecast vs Actual')
+
+# Прогнозирование с CatBoost
+st.subheader('CatBoost Forecasting')
+catboost_model = CatBoostRegressor(iterations=100, depth=5, learning_rate=0.1, random_seed=42, verbose=0)
+catboost_model.fit(X_train.reshape(-1, X_train.shape[1]), y_train)
+y_pred_catboost = catboost_model.predict(X_test.reshape(-1, X_test.shape[1]))
+plot_results(real_prices, y_pred_catboost, 'CatBoost Forecast vs Actual')
+
+# Оценка моделей
+metrics = []
+metrics.append(evaluate_model(df['Price'], y_pred_arima, 'ARIMA'))
+metrics.append(evaluate_model(df['Price'], y_pred_sarimax, 'SARIMAX'))
+metrics.append(evaluate_model(df['Price'], predicted_prices, 'LSTM'))
+metrics.append(evaluate_model(df['Price'], y_pred_catboost, 'CatBoost'))
+
+metrics_df = pd.DataFrame(metrics)
+st.subheader('Model Evaluation')
+st.write(metrics_df)
+
+# Отображаем исходный график всех данных
+st.subheader('Historical Data')
+
+plt.figure(figsize=(12, 6))
+plt.plot(df.index, df['Price'], label='Actual Prices', color='blue')
+plt.title('Historical Prices of Brent Oil')
+plt.xlabel('Time')
+plt.ylabel('Price')
+plt.legend()
+st.pyplot()  # Показываем график в Streamlit
+
+# Добавляем интерактивный график для прогноза
+st.subheader('Interactive Model Comparison')
+
+# Кнопка для отображения моделей
+model_names = ['Prophet', 'ARIMA', 'SARIMAX', 'LSTM', 'CatBoost']
+selected_model = st.selectbox("Choose a model to display predictions", model_names)
+
+# Визуализация выбранной модели
+if selected_model == 'Prophet':
+    forecast, test = prophet_forecast(df)
+    plot_results(test['y'], forecast['yhat'], 'Prophet Forecast vs Actual')
+    st.pyplot()  # Показываем график в Streamlit
+
+elif selected_model == 'ARIMA':
+    arima_model = ARIMA(df['Price'], order=(5,1,0)).fit()
+    y_pred_arima = arima_model.forecast(steps=len(df))
+    plot_results(df['Price'], y_pred_arima, 'ARIMA Forecast vs Actual')
+    st.pyplot()  # Показываем график в Streamlit
+
+elif selected_model == 'SARIMAX':
+    train_exog = df.index.month.values.reshape(-1, 1)
+    sarimax_model = SARIMAX(df['Price'], exog=train_exog, order=(1, 1, 1), seasonal_order=(1, 1, 1, 7)).fit(disp=False)
+    y_pred_sarimax = sarimax_model.forecast(steps=len(df), exog=train_exog)
+    plot_results(df['Price'], y_pred_sarimax, 'SARIMAX Forecast vs Actual')
+    st.pyplot()  # Показываем график в Streamlit
+
+elif selected_model == 'LSTM':
+    scaler = MinMaxScaler()
+    scaled_data = scaler.fit_transform(df[['Price']])
+
+    sequence_length = 50
+    X = []
+    y = []
+    for i in range(sequence_length, len(scaled_data)):
+        X.append(scaled_data[i-sequence_length:i, 0])
+        y.append(scaled_data[i, 0])
+
+    X, y = np.array(X), np.array(y)
+    X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+    train_size = int(len(X) * 0.7)
+    X_train, X_test = X[:train_size], X[train_size:]
+    y_train, y_test = y[:train_size], y[train_size:]
+
+    model = Sequential()
+    model.add(LSTM(units=50, return_sequences=False, input_shape=(X_train.shape[1], 1)))
+    model.add(Dense(1))
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    model.fit(X_train, y_train, epochs=10, batch_size=64, verbose=1)
 
     predicted = model.predict(X_test)
     predicted_prices = scaler.inverse_transform(predicted.reshape(-1, 1))
     real_prices = scaler.inverse_transform(y_test.reshape(-1, 1))
 
-    return real_prices, predicted_prices
+    plot_results(real_prices, predicted_prices, 'LSTM Forecast vs Actual')
+    st.pyplot()  # Показываем график в Streamlit
 
-# Прогнозирование с Prophet
-def prophet_forecast(df):
-    model_filename = 'prophet_model.pkl'
-    model = load_model(model_filename)
-    if model is None:
-        df_prophet = df.reset_index().rename(columns={"Date": "ds", "Price": "y"})
-        model = Prophet()
-        model.fit(df_prophet)
-        save_model(model, model_filename)
-    
-    future = df.reset_index()[['Date']].rename(columns={'Date': 'ds'})
-    forecast = model.predict(future)
-    return df['Price'], forecast['yhat']
-
-# Визуализация графиков
-def plot_results(df, model_predictions, model_name):
-    plt.figure(figsize=(12, 6))
-    plt.plot(df.index, df['Price'], label='Historical Prices', color='blue', linewidth=2)
-    plt.plot(df.index, model_predictions, label=f'{model_name} Predictions', color='red', linestyle='--', linewidth=2)
-    plt.title(f'{model_name} Forecast vs Historical Data', fontsize=16)
-    plt.xlabel('Date', fontsize=12)
-    plt.ylabel('Price', fontsize=12)
-    plt.legend()
-    plt.grid(True)
-    st.pyplot()
-
-# Интерфейс Streamlit
-st.title('Interactive Time Series Forecasting')
-
-# Загрузка данных
-df = get_data_from_EIA_local()
-
-# Выбор модели
-model_choice = st.selectbox('Select a model to display predictions', 
-                            ['ARIMA', 'SARIMAX', 'LSTM', 'Prophet'])
-
-# Выбор отображения графиков
-if model_choice == 'ARIMA':
-    st.subheader('ARIMA Forecast')
-    y_pred_arima = arima_forecast(df)
-    plot_results(df, y_pred_arima, 'ARIMA')
-
-elif model_choice == 'SARIMAX':
-    st.subheader('SARIMAX Forecast')
-    y_pred_sarimax = sarimax_forecast(df)
-    plot_results(df, y_pred_sarimax, 'SARIMAX')
-
-elif model_choice == 'LSTM':
-    st.subheader('LSTM Forecast')
-    real_prices, predicted_prices = lstm_forecast(df)
-    plot_results(df, predicted_prices, 'LSTM')
-
-elif model_choice == 'Prophet':
-    st.subheader('Prophet Forecast')
-    historical, forecast = prophet_forecast(df)
-    plot_results(df, forecast, 'Prophet')
+elif selected_model == 'CatBoost':
+    catboost_model = CatBoostRegressor(iterations=100, depth=5, learning_rate=0.1, random_seed=42, verbose=0)
+    catboost_model.fit(X_train.reshape(-1, X_train.shape[1]), y_train)
+    y_pred_catboost = catboost_model.predict(X_test.reshape(-1, X_test.shape[1]))
+    plot_results(real_prices, y_pred_catboost, 'CatBoost Forecast vs Actual')
+    st.pyplot()  # Показываем график в Streamlit
