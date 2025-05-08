@@ -199,7 +199,8 @@ fig.update_layout(title="Прогнозы моделей", xaxis_title="Дата
 st.plotly_chart(fig, use_container_width=True)
 
 
-@st.cache_data
+
+
 def predict_future_price(model, train_data, steps=30):
     future_dates = pd.date_range(start=train_data.index[-1], periods=steps+1, freq='D')[1:]
     future_features = pd.DataFrame({
@@ -215,7 +216,7 @@ def predict_future_price(model, train_data, steps=30):
     predictions = model.predict(future_features)
     return future_dates, predictions
 
-# Функция для добавления точки на будущее на график
+# Убираем кэширование из всей работы с моделями
 def plot_future_prediction(fig, future_dates, future_predictions):
     fig.add_trace(go.Scatter(
         x=future_dates, 
@@ -225,9 +226,6 @@ def plot_future_prediction(fig, future_dates, future_predictions):
         marker=dict(color='red', symbol='circle', size=10),
         line=dict(color='red', dash='dot')
     ))
-
-# Параметры для прогноза на будущее
-future_steps = 30  # Прогнозируем на 30 дней вперед
 
 # Прогноз для всех моделей
 if show_lr:
