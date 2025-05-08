@@ -202,81 +202,11 @@ st.plotly_chart(fig, use_container_width=True)
 
 
 
-def predict_future_price(model_predictions, df, steps=30):
-    # Создаем DataFrame для хранения будущих дат
-    future_dates = pd.date_range(df.index[-1] + datetime.timedelta(days=1), periods=steps, freq='D')
-
-    # Создаем DataFrame для будущих прогнозов
-    future_df = pd.DataFrame(index=future_dates)
-    
-    # Для LSTM или других моделей, которые используют числовые входные данные, например:
-    if isinstance(model_predictions, np.ndarray):
-        future_df['Price'] = model_predictions[-steps:]
-    else:
-        # Для Prophet или других моделей, которые могут делать предсказания по датам
-        future_df['Price'] = model_predictions[-steps:]
-
-    return future_df.index, future_df['Price']
-
-
-# Сохраняем ошибку для каждой модели
-errors = {}
-
-if show_lr:
-    y_pred_lr = train_and_predict_lr(X_train, train['Price'], X_test)
-    mse_lr = mean_squared_error(test['Price'], y_pred_lr)
-    mae_lr = mean_absolute_error(test['Price'], y_pred_lr)
-    errors["Linear Regression"] = {"mse": mse_lr, "mae": mae_lr}
-    fig.add_trace(go.Scatter(x=test.index, y=y_pred_lr, name="Linear Regression"))
-
-if show_rf:
-    y_pred_rf = train_and_predict_rf(X_train, train['Price'], X_test)
-    mse_rf = mean_squared_error(test['Price'], y_pred_rf)
-    mae_rf = mean_absolute_error(test['Price'], y_pred_rf)
-    errors["Random Forest"] = {"mse": mse_rf, "mae": mae_rf}
-    fig.add_trace(go.Scatter(x=test.index, y=y_pred_rf, name="Random Forest"))
-
-if show_cb:
-    y_pred_cb = train_and_predict_cb(X_train, train['Price'], X_test)
-    mse_cb = mean_squared_error(test['Price'], y_pred_cb)
-    mae_cb = mean_absolute_error(test['Price'], y_pred_cb)
-    errors["CatBoost"] = {"mse": mse_cb, "mae": mae_cb}
-    fig.add_trace(go.Scatter(x=test.index, y=y_pred_cb, name="CatBoost"))
-
-if show_lstm:
-    y_pred_lstm = train_and_predict_lstm(X_train, train['Price'], X_test)
-    mse_lstm = mean_squared_error(test['Price'], y_pred_lstm)
-    mae_lstm = mean_absolute_error(test['Price'], y_pred_lstm)
-    errors["LSTM"] = {"mse": mse_lstm, "mae": mae_lstm}
-    fig.add_trace(go.Scatter(x=test.index, y=y_pred_lstm, name="LSTM"))
-
-if show_prophet:
-    y_pred_prophet = train_and_predict_prophet(df_feat)
-    mse_prophet = mean_squared_error(df_feat['Price'], y_pred_prophet)
-    mae_prophet = mean_absolute_error(df_feat['Price'], y_pred_prophet)
-    errors["Prophet"] = {"mse": mse_prophet, "mae": mae_prophet}
-    fig.add_trace(go.Scatter(x=df_feat.index, y=y_pred_prophet, name="Prophet"))
-
-if show_arima:
-    y_pred_arima = train_and_predict_arima(train)
-    mse_arima = mean_squared_error(test['Price'], y_pred_arima)
-    mae_arima = mean_absolute_error(test['Price'], y_pred_arima)
-    errors["ARIMA"] = {"mse": mse_arima, "mae": mae_arima}
-    fig.add_trace(go.Scatter(x=test.index, y=y_pred_arima, name="ARIMA"))
-
-if show_sarima:
-    y_pred_sarima = train_and_predict_sarima(train)
-    mse_sarima = mean_squared_error(test['Price'], y_pred_sarima)
-    mae_sarima = mean_absolute_error(test['Price'], y_pred_sarima)
-    errors["SARIMA"] = {"mse": mse_sarima, "mae": mae_sarima}
-    fig.add_trace(go.Scatter(x=test.index, y=y_pred_sarima, name="SARIMA"))
-
 # Выбираем модель с минимальной MSE
 best_model = min(errors, key=lambda x: errors[x]["mse"])
-
 st.subheader(f"Лучшая модель: {best_model}")
 
-# Прогнозирование на будущее
+# Прогнозирование на будущее для выбранной модели
 if best_model == "Linear Regression":
     future_dates, predictions = predict_future_price(y_pred_lr, df_feat, steps=30)
 elif best_model == "Random Forest":
