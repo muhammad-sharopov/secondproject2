@@ -45,33 +45,31 @@ else:
     st.dataframe(df_feat.head(10))
 
 
+st.subheader("График цены Brent с выбором диапазона по годам")
 
+# Получение минимального и максимального годов
+min_year = df_feat.index.year.min()
+max_year = df_feat.index.year.max()
 
-if "2020-04-20" in df.index:
-    df.loc["2020-04-20", "Price"] = (df.loc["2020-04-17", "Price"] + df.loc["2020-04-21", "Price"]) / 2
-
-# Выбор периода
-min_date = df.index.min().date()
-max_date = df.index.max().date()
-
-start_date, end_date = st.date_input(
-    "Выберите диапазон дат",
-    value=(datetime(2019, 7, 6), datetime(2020, 7, 6)),
-    min_value=min_date,
-    max_value=max_date
+# Слайдер для выбора диапазона
+start_year, end_year = st.slider(
+    "Выберите диапазон годов:",
+    min_value=int(min_year),
+    max_value=int(max_year),
+    value=(int(min_year), int(max_year)),
+    step=1
 )
 
-# Фильтрация данных
-filtered_df = df[start_date:end_date]
+# Фильтрация по выбранному диапазону
+df_range = df_feat[(df_feat.index.year >= start_year) & (df_feat.index.year <= end_year)]
 
-# Отрисовка интерактивного графика
+# Построение графика
 fig = px.line(
-    filtered_df,
-    x=filtered_df.index,
+    df_range.reset_index(),
+    x="Date",
     y="Price",
-    labels={"x": "Дата", "Price": "Цена нефти (USD)"},
-    title="График цены нефти за выбранный период"
+    title=f"Цена Brent с {start_year} по {end_year}",
+    labels={"Price": "Цена ($)", "Date": "Дата"}
 )
-fig.update_layout(xaxis_title="Дата", yaxis_title="Цена", hovermode="x unified")
-
+fig.update_layout(xaxis_title="Дата", yaxis_title="Цена ($)")
 st.plotly_chart(fig, use_container_width=True)
