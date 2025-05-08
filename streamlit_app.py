@@ -42,3 +42,35 @@ if view_option == "До обработки":
 else:
     st.subheader("Данные с признаками")
     st.dataframe(df_feat.head(10))
+
+
+
+
+if "2020-04-20" in df.index:
+    df.loc["2020-04-20", "Price"] = (df.loc["2020-04-17", "Price"] + df.loc["2020-04-21", "Price"]) / 2
+
+# Выбор периода
+min_date = df.index.min().date()
+max_date = df.index.max().date()
+
+start_date, end_date = st.date_input(
+    "Выберите диапазон дат",
+    value=(datetime(2019, 7, 6), datetime(2020, 7, 6)),
+    min_value=min_date,
+    max_value=max_date
+)
+
+# Фильтрация данных
+filtered_df = df[start_date:end_date]
+
+# Отрисовка интерактивного графика
+fig = px.line(
+    filtered_df,
+    x=filtered_df.index,
+    y="Price",
+    labels={"x": "Дата", "Price": "Цена нефти (USD)"},
+    title="График цены нефти за выбранный период"
+)
+fig.update_layout(xaxis_title="Дата", yaxis_title="Цена", hovermode="x unified")
+
+st.plotly_chart(fig, use_container_width=True)
