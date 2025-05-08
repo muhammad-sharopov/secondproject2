@@ -1,1 +1,9 @@
 streamlit>=1.26.0
+pandas
+numpy
+scikit-learn
+catboost
+matplotlib
+statsmodels
+prophet
+tensorflow
