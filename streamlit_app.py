@@ -26,7 +26,7 @@ def add_features(df):
     return df
 
 # Загрузка данных
-df_raw = get_data_from_EIA_local()
+df = get_data_from_EIA_local()
 df_feat = add_features(df_raw.copy())
 
 # Радио-переключатель
