@@ -1,8 +1,20 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import datetime
-
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from catboost import CatBoostRegressor
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from keras.models import Sequential
+from keras.layers import LSTM, Dense
+from fbprophet import Prophet
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import plotly.graph_objects as go
+import plotly.express as px
+import streamlit as st
 
 st.title("Brent Oil Data — Feature Engineering Demo")
 
