@@ -114,63 +114,86 @@ X_test = test[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', '
 X_train = X_train.fillna(X_train.median())
 X_test = X_test.fillna(X_test.median())
 
-# Исходные данные
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=df_feat.index, y=df_feat['Price'], name="Исходные данные", line=dict(color='black')))
+# Кэширование результатов моделей
+@st.cache_data
+def train_and_predict_lr(X_train, y_train, X_test):
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    return model.predict(X_test)
 
+@st.cache_data
+def train_and_predict_rf(X_train, y_train, X_test):
+    model = RandomForestRegressor(n_estimators=100)
+    model.fit(X_train, y_train)
+    return model.predict(X_test)
+
+@st.cache_data
+def train_and_predict_cb(X_train, y_train, X_test):
+    model = CatBoostRegressor(iterations=1000, learning_rate=0.1, depth=6, cat_features=['Month', 'DayOfWeek'], verbose=0)
+    model.fit(X_train, y_train)
+    return model.predict(X_test)
+
+@st.cache_data
+def train_and_predict_lstm(X_train, y_train, X_test):
+    model = Sequential()
+    model.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], 1)))
+    model.add(LSTM(units=50, return_sequences=False))
+    model.add(Dense(units=1))
+    model.compile(optimizer='adam', loss='mean_squared_error')
+    X_train_lstm = X_train.values.reshape((X_train.shape[0], X_train.shape[1], 1))
+    model.fit(X_train_lstm, y_train, epochs=10, batch_size=32)
+    predicted_prices = model.predict(X_test.values.reshape((X_test.shape[0], X_test.shape[1], 1)))
+    return predicted_prices.flatten()
+
+@st.cache_data
+def train_and_predict_prophet(df):
+    df_prophet = df.reset_index()[['Date', 'Price']]
+    df_prophet.columns = ['ds', 'y']
+    model = Prophet()
+    model.fit(df_prophet)
+    forecast = model.predict(df_prophet)
+    return forecast['yhat']
+
+@st.cache_data
+def train_and_predict_arima(train):
+    model = ARIMA(train['Price'], order=(5, 1, 0))
+    model_fit = model.fit()
+    return model_fit.forecast(steps=len(train))
+
+@st.cache_data
+def train_and_predict_sarima(train):
+    model = SARIMAX(train['Price'], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+    model_fit = model.fit(disp=False)
+    return model_fit.forecast(steps=len(train))
+
+# Прогнозы
 if show_lr:
-    # Ensure you're using the df_feat DataFrame with the added features
-    lr_model = LinearRegression()
-    X_train = train[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']]
-    X_test = test[['Price_lag1', 'Price_MA7', 'Price_STD7', 'Return', 'DayOfWeek', 'Month']]
-    lr_model.fit(X_train, train['Price'])
-    y_pred_lr = lr_model.predict(X_test)
+    y_pred_lr = train_and_predict_lr(X_train, train['Price'], X_test)
     fig.add_trace(go.Scatter(x=test.index, y=y_pred_lr, name="Linear Regression"))
 
 if show_rf:
-    rf_model = RandomForestRegressor(n_estimators=100)
-    rf_model.fit(X_train, train['Price'])
-    y_pred_rf = rf_model.predict(X_test)
+    y_pred_rf = train_and_predict_rf(X_train, train['Price'], X_test)
     fig.add_trace(go.Scatter(x=test.index, y=y_pred_rf, name="Random Forest"))
 
 if show_cb:
-    cb_model = CatBoostRegressor(iterations=1000, learning_rate=0.1, depth=6, cat_features=['Month', 'DayOfWeek'], verbose=0)
-    cb_model.fit(X_train, train['Price'])
-    y_pred_cb = cb_model.predict(X_test)
+    y_pred_cb = train_and_predict_cb(X_train, train['Price'], X_test)
     fig.add_trace(go.Scatter(x=test.index, y=y_pred_cb, name="CatBoost"))
 
 if show_lstm:
-    # Assume lstm_model is trained here (same structure as previous code)
-    lstm_model = Sequential()
-    lstm_model.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1], 1)))
-    lstm_model.add(LSTM(units=50, return_sequences=False))
-    lstm_model.add(Dense(units=1))
-    lstm_model.compile(optimizer='adam', loss='mean_squared_error')
-    # Assuming reshaped X_train for LSTM
-    X_train_lstm = X_train.values.reshape((X_train.shape[0], X_train.shape[1], 1))
-    lstm_model.fit(X_train_lstm, train['Price'], epochs=10, batch_size=32)
-    predicted_prices = lstm_model.predict(X_test.values.reshape((X_test.shape[0], X_test.shape[1], 1)))
-    fig.add_trace(go.Scatter(x=test.index, y=predicted_prices.flatten(), name="LSTM"))
+    y_pred_lstm = train_and_predict_lstm(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_lstm, name="LSTM"))
 
 if show_prophet:
-    df_prophet = df_feat.reset_index()[['Date', 'Price']]
-    df_prophet.columns = ['ds', 'y']
-    prophet_model = Prophet()
-    prophet_model.fit(df_prophet)
-    forecast = prophet_model.predict(df_prophet)
-    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], name="Prophet"))
+    y_pred_prophet = train_and_predict_prophet(df_feat)
+    fig.add_trace(go.Scatter(x=df_feat.index, y=y_pred_prophet, name="Prophet"))
 
 if show_arima:
-    arima_model = ARIMA(train['Price'], order=(5, 1, 0))
-    arima_model_fit = arima_model.fit()
-    arima_pred = arima_model_fit.forecast(steps=len(test))
-    fig.add_trace(go.Scatter(x=test.index, y=arima_pred, name="ARIMA"))
+    y_pred_arima = train_and_predict_arima(train)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_arima, name="ARIMA"))
 
 if show_sarima:
-    sarima_model = SARIMAX(train['Price'], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
-    sarima_model_fit = sarima_model.fit(disp=False)
-    sarima_pred = sarima_model_fit.forecast(steps=len(test))
-    fig.add_trace(go.Scatter(x=test.index, y=sarima_pred, name="SARIMA"))
+    y_pred_sarima = train_and_predict_sarima(train)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_sarima, name="SARIMA"))
 
 fig.update_layout(title="Прогнозы моделей", xaxis_title="Дата", yaxis_title="Цена", legend_title="Модели")
 st.plotly_chart(fig, use_container_width=True)
