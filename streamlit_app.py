@@ -201,3 +201,38 @@ st.plotly_chart(fig, use_container_width=True)
 
 
 
+def train_and_predict_cb(X_train, y_train, X_test):
+    model = CatBoostRegressor(iterations=1000, learning_rate=0.1, depth=6, verbose=0)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    return y_pred
+
+# Функция для вычисления метрик модели
+def compute_metrics(y_true, y_pred):
+    mse = mean_squared_error(y_true, y_pred)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_true, y_pred)
+    r2 = r2_score(y_true, y_pred)
+    return mse, rmse, mae, r2
+
+# Пример данных
+# Замените на ваши данные
+X_train = train.drop(columns=['Price'])
+y_train = train['Price']
+X_test = test.drop(columns=['Price'])
+
+# Обучаем и получаем предсказания
+y_pred_cb = train_and_predict_cb(X_train, y_train, X_test)
+
+# Вычисляем метрики
+mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_cb)
+
+# Выводим метрики
+st.write(f"CatBoost Model Metrics:")
+st.write(f"MSE: {mse:.2f}")
+st.write(f"RMSE: {rmse:.2f}")
+st.write(f"MAE: {mae:.2f}")
+st.write(f"R2: {r2:.2f}")
+
+# Отображаем предсказанную цену
+st.write(f"Прогнозируемая цена: {y_pred_cb[-1]:.2f} USD")
