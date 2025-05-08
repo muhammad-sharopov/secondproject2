@@ -202,53 +202,101 @@ st.plotly_chart(fig, use_container_width=True)
 
 
 
-# Слайдер для выбора времени предсказания
+def compute_metrics(y_true, y_pred):
+    mse = mean_squared_error(y_true, y_pred)
+    rmse = np.sqrt(mse)
+    mae = mean_absolute_error(y_true, y_pred)
+    r2 = r2_score(y_true, y_pred)
+    return mse, rmse, mae, r2
+
+# Прогнозирование и вычисление метрик для каждой модели
+metrics = {}
+
+if show_lr:
+    y_pred_lr = train_and_predict_lr(X_train, train['Price'], X_test)
+    mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_lr)
+    metrics['Linear Regression'] = (mse, rmse, mae, r2)
+
+if show_rf:
+    y_pred_rf = train_and_predict_rf(X_train, train['Price'], X_test)
+    mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_rf)
+    metrics['Random Forest'] = (mse, rmse, mae, r2)
+
+if show_cb:
+    y_pred_cb = train_and_predict_cb(X_train, train['Price'], X_test)
+    mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_cb)
+    metrics['CatBoost'] = (mse, rmse, mae, r2)
+
+if show_lstm:
+    y_pred_lstm = train_and_predict_lstm(X_train, train['Price'], X_test)
+    mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_lstm)
+    metrics['LSTM'] = (mse, rmse, mae, r2)
+
+if show_prophet:
+    y_pred_prophet = train_and_predict_prophet(df_feat)
+    mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_prophet)
+    metrics['Prophet'] = (mse, rmse, mae, r2)
+
+if show_arima:
+    y_pred_arima = train_and_predict_arima(train)
+    mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_arima)
+    metrics['ARIMA'] = (mse, rmse, mae, r2)
+
+if show_sarima:
+    y_pred_sarima = train_and_predict_sarima(train)
+    mse, rmse, mae, r2 = compute_metrics(test['Price'], y_pred_sarima)
+    metrics['SARIMA'] = (mse, rmse, mae, r2)
+
+# Выбираем модель с наименьшей ошибкой (по MSE)
+best_model_name = min(metrics, key=lambda model: metrics[model][0])  # Наименьший MSE
+
+# Печать лучшей модели и ее метрик
+st.write(f"Лучшая модель: {best_model_name}")
+st.write(f"Метрики для лучшей модели:")
+st.write(f"MSE: {metrics[best_model_name][0]:.2f}")
+st.write(f"RMSE: {metrics[best_model_name][1]:.2f}")
+st.write(f"MAE: {metrics[best_model_name][2]:.2f}")
+st.write(f"R2: {metrics[best_model_name][3]:.2f}")
+
+# Прогнозирование с лучшей моделью
+if best_model_name == "Linear Regression":
+    y_pred_best = train_and_predict_lr(X_train, train['Price'], X_test)
+elif best_model_name == "Random Forest":
+    y_pred_best = train_and_predict_rf(X_train, train['Price'], X_test)
+elif best_model_name == "CatBoost":
+    y_pred_best = train_and_predict_cb(X_train, train['Price'], X_test)
+elif best_model_name == "LSTM":
+    y_pred_best = train_and_predict_lstm(X_train, train['Price'], X_test)
+elif best_model_name == "Prophet":
+    y_pred_best = train_and_predict_prophet(df_feat)
+elif best_model_name == "ARIMA":
+    y_pred_best = train_and_predict_arima(train)
+elif best_model_name == "SARIMA":
+    y_pred_best = train_and_predict_sarima(train)
+
+# Слайдер для предсказания будущей цены
 future_days = st.slider(
     "Выберите количество дней для предсказания:",
     min_value=1,
     max_value=365,
-    value=30,  # по умолчанию 30 дней
+    value=30,
     step=1
 )
 
-# Прогнозы для будущих дней
-if show_lr:
-    # Прогнозирование с использованием Linear Regression
-    future_X = X_test.tail(future_days)  # Берем последние значения X_test
-    y_pred_lr_future = train_and_predict_lr(future_X, train['Price'].iloc[-future_days:], future_X)
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для Linear Regression: {y_pred_lr_future[-1]:.2f} USD")
+# Прогнозируем будущую цену
+if best_model_name in ["Linear Regression", "Random Forest", "CatBoost", "LSTM"]:
+    future_X = X_test.tail(future_days)  # Берем последние данные для прогноза
+    future_price = y_pred_best[-future_days:]  # Прогноз на будущее
+    st.write(f"Предсказанная цена на {future_days} дней вперёд: {future_price[-1]:.2f} USD")
 
-if show_rf:
-    # Прогнозирование с использованием Random Forest
-    future_X = X_test.tail(future_days)  # Берем последние значения X_test
-    y_pred_rf_future = train_and_predict_rf(future_X, train['Price'].iloc[-future_days:], future_X)
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для Random Forest: {y_pred_rf_future[-1]:.2f} USD")
+elif best_model_name == "Prophet":
+    # Для Prophet используем future data frame
+    future = model.make_future_dataframe(df_prophet, periods=future_days)
+    forecast = model.predict(future)
+    future_price = forecast['yhat'].tail(future_days)
+    st.write(f"Предсказанная цена на {future_days} дней вперёд: {future_price.iloc[-1]:.2f} USD")
 
-if show_cb:
-    # Прогнозирование с использованием CatBoost
-    future_X = X_test.tail(future_days)  # Берем последние значения X_test
-    y_pred_cb_future = train_and_predict_cb(future_X, train['Price'].iloc[-future_days:], future_X)
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для CatBoost: {y_pred_cb_future[-1]:.2f} USD")
-
-if show_lstm:
-    # Прогнозирование с использованием LSTM
-    future_X = X_test.tail(future_days)  # Берем последние значения X_test
-    y_pred_lstm_future = train_and_predict_lstm(future_X, train['Price'].iloc[-future_days:], future_X)
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для LSTM: {y_pred_lstm_future[-1]:.2f} USD")
-
-if show_prophet:
-    # Прогнозирование с использованием Prophet
-    future_dates = pd.date_range(df_feat.index[-1], periods=future_days + 1, freq='D')[1:]  # Генерация будущих дат
-    future_df = pd.DataFrame({'ds': future_dates})  # Создаем новый DataFrame для предсказаний
-    future_prophet = train_and_predict_prophet(df_feat)
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для Prophet: {future_prophet[-1]:.2f} USD")
-
-if show_arima:
-    # Прогнозирование с использованием ARIMA
-    future_arima = train_and_predict_arima(train)
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для ARIMA: {future_arima[-1]:.2f} USD")
-
-if show_sarima:
-    # Прогнозирование с использованием SARIMA
-    future_sarima = train_and_predict_sarima(train)
-    st.write(f"Предсказанная цена на {future_days} дней вперёд для SARIMA: {future_sarima[-1]:.2f} USD")
+elif best_model_name in ["ARIMA", "SARIMA"]:
+    # Для ARIMA и SARIMA
+    future_price = y_pred_best[-future_days:]
+    st.write(f"Предсказанная цена на {future_days} дней вперёд: {future_price[-1]:.2f} USD")
