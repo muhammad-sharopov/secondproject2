@@ -9,3 +9,4 @@ prophet
 tensorflow
 plotly
 datetime
+fbprophet 
