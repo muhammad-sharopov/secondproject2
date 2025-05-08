@@ -167,6 +167,42 @@ def train_and_predict_sarima(train):
     return model_fit.forecast(steps=len(train))
 
 # Прогнозы
+if show_lr:
+    y_pred_lr = train_and_predict_lr(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_lr, name="Linear Regression"))
+
+if show_rf:
+    y_pred_rf = train_and_predict_rf(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_rf, name="Random Forest"))
+
+if show_cb:
+    y_pred_cb = train_and_predict_cb(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_cb, name="CatBoost"))
+
+if show_lstm:
+    y_pred_lstm = train_and_predict_lstm(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_lstm, name="LSTM"))
+
+if show_prophet:
+    y_pred_prophet = train_and_predict_prophet(df_feat)
+    fig.add_trace(go.Scatter(x=df_feat.index, y=y_pred_prophet, name="Prophet"))
+
+if show_arima:
+    y_pred_arima = train_and_predict_arima(train)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_arima, name="ARIMA"))
+
+if show_sarima:
+    y_pred_sarima = train_and_predict_sarima(train)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_sarima, name="SARIMA"))
+
+fig.update_layout(title="Прогнозы моделей", xaxis_title="Дата", yaxis_title="Цена", legend_title="Модели")
+st.plotly_chart(fig, use_container_width=True)
+
+
+
+
+
+# Выбираем модель с минимальной MSE
 errors = {}
 
 # Прогнозы для каждой модели и их ошибки
@@ -218,16 +254,3 @@ if show_sarima:
     mae_sarima = mean_absolute_error(test['Price'], y_pred_sarima)
     errors["SARIMA"] = {"mse": mse_sarima, "mae": mae_sarima}
     fig.add_trace(go.Scatter(x=test.index, y=y_pred_sarima, name="SARIMA"))
-
-# Отображение графика
-st.plotly_chart(fig, use_container_width=True)
-
-# Выбор лучшей модели по MSE
-if errors:
-    best_model = min(errors, key=lambda x: errors[x]['mse'])
-    st.subheader(f"Лучшая модель по MSE: {best_model}")
-    st.write(f"Среднеквадратичная ошибка (MSE): {errors[best_model]['mse']:.2f}")
-    st.write(f"Средняя абсолютная ошибка (MAE): {errors[best_model]['mae']:.2f}")
-else:
-    st.write("Не выбрана ни одна модель.")
-
