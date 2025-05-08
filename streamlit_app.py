@@ -197,3 +197,80 @@ if show_sarima:
 
 fig.update_layout(title="Прогнозы моделей", xaxis_title="Дата", yaxis_title="Цена", legend_title="Модели")
 st.plotly_chart(fig, use_container_width=True)
+
+
+@st.cache_data
+def predict_future_price(model, train_data, steps=30):
+    future_dates = pd.date_range(start=train_data.index[-1], periods=steps+1, freq='D')[1:]
+    future_features = pd.DataFrame({
+        'Price_lag1': [train_data['Price'].iloc[-1]] * steps,
+        'Price_MA7': [train_data['Price_MA7'].iloc[-1]] * steps,
+        'Price_STD7': [train_data['Price_STD7'].iloc[-1]] * steps,
+        'Return': [train_data['Return'].iloc[-1]] * steps,
+        'DayOfWeek': [train_data['DayOfWeek'].iloc[-1]] * steps,
+        'Month': [train_data['Month'].iloc[-1]] * steps
+    }, index=future_dates)
+    
+    future_features = future_features.fillna(future_features.median())
+    predictions = model.predict(future_features)
+    return future_dates, predictions
+
+# Функция для добавления точки на будущее на график
+def plot_future_prediction(fig, future_dates, future_predictions):
+    fig.add_trace(go.Scatter(
+        x=future_dates, 
+        y=future_predictions, 
+        name="Прогноз на будущее", 
+        mode='lines+markers', 
+        marker=dict(color='red', symbol='circle', size=10),
+        line=dict(color='red', dash='dot')
+    ))
+
+# Параметры для прогноза на будущее
+future_steps = 30  # Прогнозируем на 30 дней вперед
+
+# Прогноз для всех моделей
+if show_lr:
+    y_pred_lr = train_and_predict_lr(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_lr, name="Linear Regression"))
+    future_dates, future_predictions = predict_future_price(LinearRegression(), df_feat, steps=future_steps)
+    plot_future_prediction(fig, future_dates, future_predictions)
+
+if show_rf:
+    y_pred_rf = train_and_predict_rf(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_rf, name="Random Forest"))
+    future_dates, future_predictions = predict_future_price(RandomForestRegressor(n_estimators=100), df_feat, steps=future_steps)
+    plot_future_prediction(fig, future_dates, future_predictions)
+
+if show_cb:
+    y_pred_cb = train_and_predict_cb(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_cb, name="CatBoost"))
+    future_dates, future_predictions = predict_future_price(CatBoostRegressor(iterations=1000, learning_rate=0.1, depth=6), df_feat, steps=future_steps)
+    plot_future_prediction(fig, future_dates, future_predictions)
+
+if show_lstm:
+    y_pred_lstm = train_and_predict_lstm(X_train, train['Price'], X_test)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_lstm, name="LSTM"))
+    future_dates, future_predictions = predict_future_price(Sequential(), df_feat, steps=future_steps)
+    plot_future_prediction(fig, future_dates, future_predictions)
+
+if show_prophet:
+    y_pred_prophet = train_and_predict_prophet(df_feat)
+    fig.add_trace(go.Scatter(x=df_feat.index, y=y_pred_prophet, name="Prophet"))
+    future_dates, future_predictions = predict_future_price(Prophet(), df_feat, steps=future_steps)
+    plot_future_prediction(fig, future_dates, future_predictions)
+
+if show_arima:
+    y_pred_arima = train_and_predict_arima(train)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_arima, name="ARIMA"))
+    future_dates, future_predictions = predict_future_price(ARIMA(train['Price'], order=(5, 1, 0)), df_feat, steps=future_steps)
+    plot_future_prediction(fig, future_dates, future_predictions)
+
+if show_sarima:
+    y_pred_sarima = train_and_predict_sarima(train)
+    fig.add_trace(go.Scatter(x=test.index, y=y_pred_sarima, name="SARIMA"))
+    future_dates, future_predictions = predict_future_price(SARIMAX(train['Price'], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12)), df_feat, steps=future_steps)
+    plot_future_prediction(fig, future_dates, future_predictions)
+
+fig.update_layout(title="Прогнозы моделей с будущими точками", xaxis_title="Дата", yaxis_title="Цена", legend_title="Модели")
+st.plotly_chart(fig, use_container_width=True)
